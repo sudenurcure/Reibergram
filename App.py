@@ -9,13 +9,28 @@ from PyQt5.QtWidgets import (
     QLabel,
     QLineEdit,
     QGridLayout,
+    QMessageBox,
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QGuiApplication
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from Integrated import *
 from docx import Document
 from docx.shared import Inches
+import datetime
+import shutil
+
+
+def create_date_folder():
+    today = datetime.date.today()
+    folder_name = today.strftime("%Y-%m-%d")
+    folder_path = os.path.join("All Documents", folder_name)
+
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+
+    return folder_path
 
 
 class DataEntryWindow(QWidget):
@@ -68,19 +83,50 @@ class DataEntryWindow(QWidget):
         qigg = self.input_widgets["QIgG:"].text()
         qalb = self.input_widgets["QAlb:"].text()
 
-        # Convert QIgG and QAlb to float (assuming they are in mg/dL)
-        qigg = float(qigg) / 1000
-        qalb = float(qalb) / 1000
+        # Validate inputs
+        if not all([name, age, gender, barcode, qigg, qalb]):
+            QMessageBox.warning(
+                self,
+                "Validation Error",
+                "Please fill in all fields.",
+                QMessageBox.Ok,
+            )
+            return
+
+        try:
+            age = int(age)
+            qigg = float(qigg) / 1000
+            qalb = float(qalb) / 1000
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                "Validation Error",
+                "Invalid input for Age, QIgG, or QAlb.",
+                QMessageBox.Ok,
+            )
+            return
 
         # Call the function to generate the Word document with information and the Reibergram plot
-        self.generate_word_doc_with_info(qigg, qalb, name, age, gender, barcode)
+        folder_path = create_date_folder()
+        self.generate_word_doc_with_info(
+            qigg, qalb, name, age, gender, barcode, folder_path
+        )
 
         # Reset the input fields
         self.reset_fields()
+        QMessageBox.information(
+            self,
+            "Data Saved",
+            "Data saved successfully.",
+            QMessageBox.Ok,
+        )
 
-    def generate_word_doc_with_info(self, Qigg, Qalbumin, name, age, gender, barcode):
+    def generate_word_doc_with_info(
+        self, Qigg, Qalbumin, name, age, gender, barcode, folder_path
+    ):
         doc_name = f"{barcode}.docx"
         plot_file = f"{barcode}.png"
+        doc_path = os.path.join(folder_path, doc_name)
 
         # Create a Word document
         doc = Document()
@@ -101,7 +147,7 @@ class DataEntryWindow(QWidget):
         )  # Adjust width and height as needed
 
         # Save the Word document
-        doc.save(doc_name)
+        doc.save(doc_path)
 
         # Delete redundant plot.png
         if os.path.exists(plot_file):
@@ -130,17 +176,23 @@ class MainWindow(QMainWindow):
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(label)
 
-        start_button = QPushButton("Start")
-        start_button.clicked.connect(self.open_data_entry_window)
-        layout.addWidget(start_button)
+        # Create a timer to close the main window and show the data entry window
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.close_and_show_data_entry)
+        self.timer.start(4000)  # Close after 4 seconds (4000 milliseconds)
 
-    def open_data_entry_window(self):
-        self.close()
+    def close_and_show_data_entry(self):
+        self.timer.stop()  # Stop the timer
+        self.close()  # Close the main window
         self.data_entry_window = DataEntryWindow()
         self.data_entry_window.show()
 
 
 if __name__ == "__main__":
+    # Create a directory to store all documents
+    if not os.path.exists("All Documents"):
+        os.makedirs("All Documents")
+
     labels = ["Name/Surname", "Age", "Gender", "Barcode", "QIgG", "QAlb"]
     data_entries = []
     app = QApplication(sys.argv)
