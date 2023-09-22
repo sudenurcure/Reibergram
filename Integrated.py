@@ -28,13 +28,21 @@ def define_lines():
     q_igg_values = 0.93 * (np.sqrt(q_alb_values**2 + 6e-6)) - 1.7e-3
     s_igg_values = 0.33 * (np.sqrt(q_alb_values**2 + 2e-6)) - 0.3e-3
 
-    plt.plot(q_alb_values, q_igg_values, color='black', linewidth=2)
-    plt.plot(q_alb_values, s_igg_values, color='black', linewidth=1)
+    plt.plot(q_alb_values, q_igg_values, color="black", linewidth=2)
+    plt.plot(q_alb_values, s_igg_values, color="black", linewidth=1)
 
-    plt.fill_between(q_alb_values, q_igg_values, s_igg_values, 
-                    where=(q_alb_values >= 8e-3), facecolor="none", 
-                    edgecolor="black", alpha=1, hatch='\|')
+    plt.fill_between(
+        q_alb_values,
+        q_igg_values,
+        s_igg_values,
+        where=(q_alb_values >= 8e-3),
+        facecolor="none",
+        edgecolor="black",
+        alpha=1,
+        hatch="\|",
+    )
     return 0
+
 
 def draw_vertical_lines():
     """
@@ -47,7 +55,8 @@ def draw_vertical_lines():
     ymax = [3.4e-3, 4.7e-3, 6e-3]
 
     for x, y1, y2 in zip(vertical_lines_x, ymin, ymax):
-        plt.plot([x, x], [y1, y2], color="black", linewidth=2, linestyle='-')
+        plt.plot([x, x], [y1, y2], color="black", linewidth=2, linestyle="-")
+
 
 def get_input():
     """
@@ -59,7 +68,7 @@ def get_input():
     """
     while True:
         user_input = input("Enter QIgG value (or 'stop' to exit): ")
-        if user_input.lower() == 'stop':
+        if user_input.lower() == "stop":
             raise SystemExit(0)
         try:
             Qigg = float(user_input) * CONVERSION_FACTOR
@@ -69,7 +78,7 @@ def get_input():
 
     while True:
         user_input = input("Enter QAlb value: ")
-        if user_input.lower() == 'stop':
+        if user_input.lower() == "stop":
             raise SystemExit(0)
         try:
             Qalbumin = float(user_input) * CONVERSION_FACTOR
@@ -79,6 +88,7 @@ def get_input():
 
     return Qigg, Qalbumin
 
+
 def main_plot_setup(Qigg, Qalbumin):
     """
     Set up the main plot with labels, ticks, and legends.
@@ -87,10 +97,22 @@ def main_plot_setup(Qigg, Qalbumin):
         Qigg (float): QIgG value.
         Qalbumin (float): QAlb value.
     """
-    plt.figure(figsize=(6, 8)) 
+    plt.figure(figsize=(6, 8))
 
-    plt.semilogx([Qalbumin, Qalbumin], [0, Qigg], color='b', linestyle='solid', label=f"QAlb = {int(Qalbumin*1000)}"+ " x $\mathregular{10^{-3}}$")
-    plt.semilogy([0, Qalbumin], [Qigg, Qigg], color='g', linestyle='solid', label=f"QIgG = {int(Qigg*1000)}" + " x $\mathregular{10^{-3}}$")
+    plt.semilogx(
+        [Qalbumin, Qalbumin],
+        [0, Qigg],
+        color="b",
+        linestyle="solid",
+        label=f"QAlb = {int(Qalbumin*1000)}" + " x $\mathregular{10^{-3}}$",
+    )
+    plt.semilogy(
+        [0, Qalbumin],
+        [Qigg, Qigg],
+        color="g",
+        linestyle="solid",
+        label=f"QIgG = {int(Qigg*1000)}" + " x $\mathregular{10^{-3}}$",
+    )
 
     plt.xlim(X_MIN, X_MAX)
     plt.ylim(Y_MIN, Y_MAX)
@@ -98,14 +120,15 @@ def main_plot_setup(Qigg, Qalbumin):
     plt.xticks(X_TICKS, X_TICKS_L)
     plt.yticks(Y_TICKS, Y_TICKS_L)
 
-    plt.scatter(Qalbumin, Qigg, color='r')
-    plt.title('Reibergram')
-    plt.ylabel('QIgG $(\mathregular{x10^{-3}}$) (mg/dL)')
-    plt.xlabel('QAlb $(\mathregular{x10^{-3}}$)(mg/dL)')
+    plt.scatter(Qalbumin, Qigg, color="r")
+    plt.title("Reibergram")
+    plt.ylabel("QIgG $(\mathregular{x10^{-3}}$) (mg/dL)")
+    plt.xlabel("QAlb $(\mathregular{x10^{-3}}$)(mg/dL)")
     plt.grid(False)
     plt.legend()
 
-def plot_reibergram(Qigg, Qalbumin):
+
+def plot_reibergram(Qigg, Qalbumin, barcode="App"):
     """
     Plot the Reibergram including vertical lines and shaded region.
 
@@ -118,7 +141,7 @@ def plot_reibergram(Qigg, Qalbumin):
     draw_vertical_lines()
 
     plt.legend()
-    plt.show()
+    plt.savefig(f"{barcode}.png")
 
 
 if __name__ == "__main__":

@@ -1,13 +1,21 @@
 import sys
-import io
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QWidget, QVBoxLayout, QLabel, QLineEdit, QGridLayout
+import os
+from PyQt5.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QPushButton,
+    QWidget,
+    QVBoxLayout,
+    QLabel,
+    QLineEdit,
+    QGridLayout,
+)
 from PyQt5.QtCore import Qt
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from Integrated import *
 from docx import Document
-from docx.shared import Pt
-from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.shared import Inches
 
 
 class DataEntryWindow(QWidget):
@@ -43,7 +51,9 @@ class DataEntryWindow(QWidget):
         entry = QLineEdit()
         layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(entry, row, 1)
-        self.input_widgets[label_text] = entry  # Store the QLineEdit widget in the dictionary
+        self.input_widgets[
+            label_text
+        ] = entry  # Store the QLineEdit widget in the dictionary
 
     def reset_fields(self):
         for widget in self.input_widgets.values():
@@ -67,33 +77,39 @@ class DataEntryWindow(QWidget):
 
         # Reset the input fields
         self.reset_fields()
-        self.close()  # Close the data entry window after saving
 
     def generate_word_doc_with_info(self, Qigg, Qalbumin, name, age, gender, barcode):
+        doc_name = f"{barcode}.docx"
+        plot_file = f"{barcode}.png"
+
         # Create a Word document
         doc = Document()
 
-        plt.figure(figsize=(6, 8))  # Set the figure size as needed
-        plot_reibergram(Qigg, Qalbumin)
-        
-        # Save the plot to a BytesIO object
-        image_stream = io.BytesIO()
-        plt.savefig(image_stream, format='png')
-        image_stream.seek(0)
-
+        plot_reibergram(Qigg, Qalbumin, barcode)
 
         # Add collected information to the Word document
-        info_text = f"Name/Surname: {name}\nAge: {age}\nGender: {gender}\nBarcode: {barcode}"
-        doc.add_heading('Data Entries:', level=1)
+        info_text = (
+            f"Name/Surname: {name}\nAge: {age}\nGender: {gender}\nBarcode: {barcode}"
+        )
+
+        doc.add_heading("Data Entries:", level=1)
         doc.add_paragraph(info_text)
 
         # Add the plot image to the Word document
-        doc.add_picture(image_stream, width=6, height=4)  # Adjust width and height as needed
+        doc.add_picture(
+            plot_file, width=Inches(5), height=Inches(5)
+        )  # Adjust width and height as needed
+
         # Save the Word document
-        doc.save(f"{barcode}.docx")
+        doc.save(doc_name)
+
+        # Delete redundant plot.png
+        if os.path.exists(plot_file):
+            os.remove(plot_file)
 
         # Close the plot to free up memory
         plt.close()
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -119,11 +135,12 @@ class MainWindow(QMainWindow):
         layout.addWidget(start_button)
 
     def open_data_entry_window(self):
+        self.close()
         self.data_entry_window = DataEntryWindow()
         self.data_entry_window.show()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     labels = ["Name/Surname", "Age", "Gender", "Barcode", "QIgG", "QAlb"]
     data_entries = []
     app = QApplication(sys.argv)
