@@ -5,6 +5,7 @@ import numpy as np
 # Reiber, H. (1994). Flow rate of cerebrospinal fluid (CSF) —
 # A concept common to normal blood-CSF barrier function and to dysfunction in neurological diseases.
 # Journal of the Neurological Sciences, 122(2), 189–203. doi:10.1016/0022-510x(94)90298-4
+# Sude Nur Cüre
 
 # Constants
 CONVERSION_FACTOR = 1e-3
@@ -16,8 +17,8 @@ Y_MIN = 0.3e-3
 Y_MAX = 130e-3
 Y_TICKS = [0.5e-3, 1e-3, 2e-3, 5e-3, 10e-3, 20e-3, 50e-3, 100e-3]
 X_TICKS = [2e-3, 5e-3, 10e-3, 20e-3, 50e-3, 100e-3]
-Y_TICKS_L = [0.5, 1, 2, 5, 10, 20, 50, 100]
-X_TICKS_L = [2, 5, 10, 20, 50, 100]
+Y_TICKS_L = [".5", 1, 2, 5, 10, 20, 50, "$\mathregular{100_{x10^{-3}}}$"]
+X_TICKS_L = [2, 5, 10, "$\mathregular{20_{x10^{-3}}}$", 50, 100]
 
 
 def define_lines():
@@ -33,8 +34,65 @@ def define_lines():
     q_igg_values = 0.93 * (np.sqrt(q_alb_values**2 + 6e-6)) - 1.7e-3
     s_igg_values = 0.33 * (np.sqrt(q_alb_values**2 + 2e-6)) - 0.3e-3
 
+    twenty_igg_values = q_igg_values / 0.8
+    fourty_igg_values = q_igg_values / 0.6
+    sixty_igg_values = q_igg_values / 0.4
+    eighty_igg_values = q_igg_values / 0.2
+
     plt.plot(q_alb_values, q_igg_values, color="black", linewidth=2)
     plt.plot(q_alb_values, s_igg_values, color="black", linewidth=1)
+
+    plt.plot(
+        q_alb_values, twenty_igg_values, color="black", linewidth=1, linestyle="--"
+    )
+    plt.plot(
+        q_alb_values, fourty_igg_values, color="black", linewidth=1, linestyle="--"
+    )
+    plt.plot(q_alb_values, sixty_igg_values, color="black", linewidth=1, linestyle="--")
+
+    plt.plot(
+        q_alb_values, eighty_igg_values, color="black", linewidth=1, linestyle="--"
+    )
+
+    # Label for twenty_igg_values line
+    plt.text(
+        87e-3,
+        100e-3,
+        "20",
+        ha="right",
+        va="bottom",
+        color="black",
+    )
+
+    # Label for fourty_igg_values line
+    plt.text(
+        66e-3,
+        100e-3,
+        "40",
+        ha="right",
+        va="bottom",
+        color="black",
+    )
+
+    # Label for sixty_igg_values line
+    plt.text(
+        44e-3,
+        100e-3,
+        "60",
+        ha="right",
+        va="bottom",
+        color="black",
+    )
+
+    # Label for eighty_igg_values line
+    plt.text(
+        23e-3,
+        100e-3,
+        "80%",
+        ha="right",
+        va="bottom",
+        color="black",
+    )
 
     plt.fill_between(
         q_alb_values,
@@ -102,21 +160,19 @@ def main_plot_setup(Qigg, Qalbumin):
         Qigg (float): QIgG value.
         Qalbumin (float): QAlb value.
     """
-    plt.figure(figsize=(6, 8))
+    plt.figure(figsize=(6, 7))
 
     plt.semilogx(
         [Qalbumin, Qalbumin],
         [0, Qigg],
         color="b",
         linestyle="solid",
-        label=f"QAlb = {int(Qalbumin*1000)}" + " x $\mathregular{10^{-3}}$",
     )
     plt.semilogy(
         [0, Qalbumin],
         [Qigg, Qigg],
         color="g",
         linestyle="solid",
-        label=f"QIgG = {int(Qigg*1000)}" + " x $\mathregular{10^{-3}}$",
     )
 
     plt.xlim(X_MIN, X_MAX)
@@ -125,12 +181,46 @@ def main_plot_setup(Qigg, Qalbumin):
     plt.xticks(X_TICKS, X_TICKS_L)
     plt.yticks(Y_TICKS, Y_TICKS_L)
 
+    plt.tick_params(
+        axis="x",
+        which="both",
+        length=8,
+        width=1.5,
+        direction="in",
+        pad=-8,
+    )
+    plt.tick_params(axis="y", which="both", length=8, width=1.5, direction="in", pad=-9)
+
+    for tick in plt.gca().yaxis.get_majorticklabels():
+        tick.set_horizontalalignment("left")
+    for tick in plt.gca().xaxis.get_majorticklabels():
+        tick.set_verticalalignment("bottom")
+
+    plt.text(
+        3e-3,
+        60e-3,
+        "QIgG",
+        ha="center",
+        va="center",
+        fontsize=15,
+        color="black",
+        alpha=1,
+        weight="bold",
+    )
+    plt.text(
+        60e-3,
+        0.65e-3,
+        "QAlb",
+        ha="center",
+        va="center",
+        fontsize=15,
+        color="black",
+        alpha=1,
+        weight="bold",
+    )
+
     plt.scatter(Qalbumin, Qigg, color="r")
-    plt.title("Reibergram")
-    plt.ylabel("QIgG $(\mathregular{x10^{-3}}$) (mg/dL)")
-    plt.xlabel("QAlb $(\mathregular{x10^{-3}}$)(mg/dL)")
     plt.grid(False)
-    plt.legend()
 
 
 def plot_reibergram(Qigg, Qalbumin, barcode="App"):
@@ -145,8 +235,7 @@ def plot_reibergram(Qigg, Qalbumin, barcode="App"):
     define_lines()
     draw_vertical_lines()
 
-    plt.legend()
-    plt.savefig(f"{barcode}.png")
+    plt.savefig(f"{barcode}.png", bbox_inches="tight")
 
 
 if __name__ == "__main__":

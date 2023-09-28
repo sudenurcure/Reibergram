@@ -14,8 +14,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QKeyEvent
 from docx import Document
-from docx.shared import Pt
-from docx.shared import Inches
+from docx.shared import Pt, Cm
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 
 # Constants for document format settings
 WORD_FORMAT = "Word (.docx)"
@@ -139,7 +139,6 @@ class DataEntryWindow(QWidget):
             widget.clear()
 
     def save_data(self):
-        # Get the entered values
         name = self.input_widgets["Adı Soyadı:"].text()
         age = self.input_widgets["Yaşı:"].text()
         gender = self.input_widgets["Cinsiyeti:"].text()
@@ -182,7 +181,7 @@ class DataEntryWindow(QWidget):
         # Call the function to generate the Word document with information and the Reibergram plot
         folder_path = create_date_folder()
         self.generate_word(
-            qigg, qalb, name.title(), age, gender.upper(), barcode, folder_path
+            qigg, qalb, name.upper(), age, gender.upper(), barcode, folder_path
         )
 
         # Reset the input fields
@@ -197,26 +196,69 @@ class DataEntryWindow(QWidget):
     def generate_word(self, Qigg, Qalbumin, name, age, gender, barcode, folder_path):
         doc_name = f"{barcode}.docx"
         plot_file = f"{barcode}.png"
+        IgA = "IgA.png"
+        IgM = "IgM.png"
         doc_path = os.path.join(folder_path, doc_name)
 
         # Create a Word document
         doc = Document()
-
         plot_reibergram(Qigg, Qalbumin, barcode)
 
         # Add collected information to the Word document
-        info_text = f"Adı Soyadı: {name}\nYaşı: {age}\nCinsiyeti: {gender}\nÖrnek Numarası: {barcode}\nRapor Tarihi: {datetime.date.today()}"
+        info_text = f"\nAdı Soyadı: {name}\nCinsiyeti, yaşı: {gender}/{age}\nÖrnek No: {barcode}\nRapor Tarihi: {datetime.date.today().strftime('%d.%m.%Y')}"
 
-        para = doc.add_paragraph()
-        run = para.add_run(info_text)
-        font = run.font
-        font.size = Pt(14)
-        font.bold = True
+        table = doc.add_table(rows=3, cols=2)
+        table.autofit = False
 
-        # Add the plot image to the Word document
-        doc.add_picture(
-            plot_file, width=Inches(5), height=Inches(6)
-        )  # Adjust width and height as needed
+        # Set the column widths
+        table.columns[0].width = Cm(6.43)
+        table.columns[1].width = Cm(6.43)
+
+        for i, row in enumerate(table.rows):
+            for j, cell in enumerate(row.cells):
+                if i == 0:
+                    if j == 0:
+                        # First cell in the first row - add text
+                        paragraph = cell.add_paragraph(info_text)
+                        paragraph.paragraph_format.line_spacing_rule = (
+                            WD_LINE_SPACING.SINGLE
+                        )
+                        run = paragraph.runs[0]
+                        run.font.size = Pt(12)
+                        run.font.bold = True
+                        run.font.name = "Times New Roman"
+                    elif j == 1:
+                        # Second cell in the first row - add image
+                        text = ["BOS/Serum quotient diagramları \n(Reibergram)"]
+                        paragraph = cell.add_paragraph()
+                        paragraph.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        paragraph.paragraph_format.line_spacing_rule = (
+                            WD_LINE_SPACING.SINGLE
+                        )
+                        p_run = paragraph.add_run(text)
+                        p_run.font.size = Pt(12)
+                        p_run.font.bold = True
+                        p_run.font.name = "Times New Roman"
+
+                        cell.paragraphs[1].format_alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        run = cell.paragraphs[1].add_run()
+                        run.add_picture(plot_file, width=Cm(6.6), height=Cm(6.4))
+                elif i == 1:
+                    if j == 0:
+                        pass
+                    elif j == 1:
+                        # Second cell in the second row - add image
+                        cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        run = cell.paragraphs[0].add_run()
+                        run.add_picture(IgA, width=Cm(6.6), height=Cm(6.4))
+                else:
+                    if j == 0:
+                        pass
+                    else:
+                        # Second cell in the third row - add image
+                        cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        run = cell.paragraphs[0].add_run()
+                        run.add_picture(IgM, width=Cm(6.6), height=Cm(6.4))
 
         # Save the Word document
         doc.save(doc_path)
@@ -226,12 +268,3 @@ class DataEntryWindow(QWidget):
 
         # Delete the plot file
         os.remove(plot_file)
-
-
-if __name__ == "__main__":
-    import sys
-
-    app = QApplication(sys.argv)
-    main_window = DataEntryWindow()
-    main_window.show()
-    sys.exit(app.exec_())
