@@ -1,22 +1,24 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Hansotto Reiber
-# Reiber, H. (1994). Flow rate of cerebrospinal fluid (CSF) —
-# A concept common to normal blood-CSF barrier function and to dysfunction in neurological diseases.
-# Journal of the Neurological Sciences, 122(2), 189–203. doi:10.1016/0022-510x(94)90298-4
-# Sude Nur Cüre
+"""
+Changing elements:
+* high and low
+
+* Plot drawing is inactivated for given coordinates.
+"""
 
 
-# Limiting Functions
 def high(x):
-    q_igg_value = 0.93 * (np.sqrt(x**2 + 6e-6)) - 1.7e-3
-    return q_igg_value
+    # q_IgM_value = 0.67 * (np.sqrt(x**2 + 120e-6)) - 7.1e-3 #IgM
+    q_IgA_value = 0.77 * (np.sqrt(x**2 + 23e-6)) - 3.1e-3
+    return q_IgA_value
 
 
-def low(x):
-    s_igg_value = 0.33 * (np.sqrt(x**2 + 2e-6)) - 0.3e-3
-    return s_igg_value
+def low(x):  # takes list returns list
+    # s_IgM_value = 0.04 * (np.sqrt(x**2 + 442e-6)) - 0.82e-3 #IgM
+    s_IgA_value = 0.17 * (np.sqrt(x**2 + 74e-6)) - 1.3e-3
+    return s_IgA_value
 
 
 # Constants
@@ -31,14 +33,15 @@ Y_TICKS = [0.5e-3, 1e-3, 2e-3, 5e-3, 10e-3, 20e-3, 50e-3, 100e-3]
 X_TICKS = [2e-3, 5e-3, 10e-3, 20e-3, 50e-3, 100e-3]
 Y_TICKS_L = [".5", 1, 2, 5, 10, 20, 50, "$\mathregular{100_{x10^{-3}}}$"]
 X_TICKS_L = [2, 5, 10, "$\mathregular{20_{x10^{-3}}}$", 50, 100]
-q_alb_values = np.linspace(QALB_MIN, QALB_MAX, 1000)
-q_igg_values = 0.93 * (np.sqrt(q_alb_values**2 + 6e-6)) - 1.7e-3
-s_igg_values = 0.33 * (np.sqrt(q_alb_values**2 + 2e-6)) - 0.3e-3
 
-twenty_igg_values = q_igg_values / 0.8
-fourty_igg_values = q_igg_values / 0.6
-sixty_igg_values = q_igg_values / 0.4
-eighty_igg_values = q_igg_values / 0.2
+q_alb_values = np.linspace(QALB_MIN, QALB_MAX, 1000)
+q_IgA_values = high(q_alb_values)
+s_IgA_values = low(q_alb_values)
+
+twenty_IgA_values = q_IgA_values / 0.8
+fourty_IgA_values = q_IgA_values / 0.6
+sixty_IgA_values = q_IgA_values / 0.4
+eighty_IgA_values = q_IgA_values / 0.2
 
 vertical_lines_x = [5e-3, 6.5e-3, 8e-3]
 vertical_ymax = [
@@ -46,8 +49,13 @@ vertical_ymax = [
     high(vertical_lines_x[1]),
     high(vertical_lines_x[2]),
 ]
-vertical_ymin = [2.3e-3, 3.2e-3, 2.4e-3]
-top_limit = [twenty_igg_values, fourty_igg_values, sixty_igg_values, eighty_igg_values]
+vertical_ymin = [
+    2.3 * vertical_ymax[0] / 4.2,
+    2.3 * vertical_ymax[1] / 4.3,
+    low(vertical_lines_x[2]),
+]
+
+top_limit = [twenty_IgA_values, fourty_IgA_values, sixty_IgA_values, eighty_IgA_values]
 upper_liners = ["20", "40", "60", "80%"]
 
 # Functions
@@ -66,16 +74,16 @@ def text_at_position(upper, label):
 
 def define_lines():
     """
-    Calculate QAlb, QIgG, and SIgG values.
+    Calculate QAlb, QIgA, and SIgA values.
 
     Returns:
         q_alb_values (numpy.ndarray): Array of QAlb values.
-        q_igg_values (numpy.ndarray): Array of QIgG values.
-        s_igg_values (numpy.ndarray): Array of SIgG values.
+        q_IgA_values (numpy.ndarray): Array of QIgA values.
+        s_IgA_values (numpy.ndarray): Array of SIgA values.
     """
 
-    plt.plot(q_alb_values, q_igg_values, color="black", linewidth=2)
-    plt.plot(q_alb_values, s_igg_values, color="black", linewidth=1)
+    plt.plot(q_alb_values, q_IgA_values, color="black", linewidth=2)
+    plt.plot(q_alb_values, s_IgA_values, color="black", linewidth=1)
 
     for values in top_limit:
         plt.plot(q_alb_values, values, color="black", linewidth=1, linestyle="--")
@@ -99,8 +107,8 @@ def define_lines():
     ] + [y for y in plt.yticks(minor=True)[0] if y >= low(8e-3) and y < high(130e-3)]
 
     for y in gridline_y_positions:
-        xinterp_max = np.interp(y, s_igg_values, q_alb_values)
-        xinterp_min = np.interp(y, q_igg_values, q_alb_values)
+        xinterp_max = np.interp(y, s_IgA_values, q_alb_values)
+        xinterp_min = np.interp(y, q_IgA_values, q_alb_values)
         if xinterp_min < 8e-3:
             xinterp_min = 8e-3
         plt.hlines(
@@ -111,6 +119,7 @@ def define_lines():
             linewidth=0.5,
             linestyle="-",
         )
+    return 0
 
 
 def draw_vertical_lines():
@@ -126,21 +135,21 @@ def draw_vertical_lines():
 
 def get_input():
     """
-    Get user input for QIgG and QAlb values.
+    Get user input for QIgA and QAlb values.
 
     Returns:
-        Qigg (float): QIgG value.
+        QIgA (float): QIgA value.
         Qalbumin (float): QAlb value.
     """
     while True:
-        user_input = input("QIgG değeri giriniz. (ya da çıkmak için 'bitir'): ")
+        user_input = input("QIgA değeri giriniz. (ya da çıkmak için 'bitir'): ")
         if user_input.lower() == "bitir":
             raise SystemExit(0)
         try:
-            Qigg = float(user_input) * CONVERSION_FACTOR
-            break  # Exit the loop if QIgG is valid
+            QIgA = float(user_input) * CONVERSION_FACTOR
+            break  # Exit the loop if QIgA is valid
         except ValueError:
-            print("Lütfen geçerli bir QIgG değeri giriniz.")
+            print("Lütfen geçerli bir QIgA değeri giriniz.")
 
     while True:
         user_input = input("QAlb değeri giriniz. (ya da çıkmak için 'bitir'): ")
@@ -152,31 +161,21 @@ def get_input():
         except ValueError:
             print("Lütfen geçerli bir QAlb değeri giriniz.")
 
-    return Qigg, Qalbumin
+    return QIgA, Qalbumin
 
 
-def main_plot_setup(Qigg, Qalbumin):
+def main_plot_setup(QIgA, Qalbumin):
     """
     Set up the main plot with labels, ticks, and legends.
 
     Args:
-        Qigg (float): QIgG value.
+        QIgA (float): QIgA value.
         Qalbumin (float): QAlb value.
     """
     plt.figure(figsize=(6, 6))
 
-    plt.semilogx(
-        [Qalbumin, Qalbumin],
-        [0, Qigg],
-        color="b",
-        linestyle="solid",
-    )
-    plt.semilogy(
-        [0, Qalbumin],
-        [Qigg, Qigg],
-        color="g",
-        linestyle="solid",
-    )
+    plt.semilogx([Qalbumin, Qalbumin], [0, QIgA], color="b", linestyle="solid", alpha=0)
+    plt.semilogy([0, Qalbumin], [QIgA, QIgA], color="g", linestyle="solid", alpha=0)
 
     plt.xlim(X_MIN, X_MAX)
     plt.ylim(Y_MIN, Y_MAX)
@@ -203,10 +202,11 @@ def main_plot_setup(Qigg, Qalbumin):
     for tick in plt.gca().xaxis.get_majorticklabels():
         tick.set_verticalalignment("bottom")
 
+    # Sude Nur Cüre
     plt.text(
         3e-3,
         60e-3,
-        "QIgG",
+        "QIgA",
         ha="center",
         va="center",
         fontsize=15,
@@ -226,19 +226,18 @@ def main_plot_setup(Qigg, Qalbumin):
         weight="bold",
     )
 
-    plt.scatter(Qalbumin, Qigg, color="r")
     plt.grid(False)
 
 
-def plot_reibergram(Qigg, Qalbumin, barcode="App"):
+def plot_reibergram(QIgA, Qalbumin, barcode="App"):
     """
     Plot the Reibergram including vertical lines and shaded region.
 
     Args:
-        Qigg (float): QIgG value.
+        QIgA (float): QIgA value.
         Qalbumin (float): QAlb value.
     """
-    main_plot_setup(Qigg, Qalbumin)
+    main_plot_setup(QIgA, Qalbumin)
     define_lines()
     draw_vertical_lines()
 
@@ -248,8 +247,8 @@ def plot_reibergram(Qigg, Qalbumin, barcode="App"):
 if __name__ == "__main__":
     while True:
         try:
-            Qigg, Qalbumin = get_input()
-            plot_reibergram(Qigg, Qalbumin)
+            QIgA, Qalbumin = get_input()
+            plot_reibergram(QIgA, Qalbumin)
         except KeyboardInterrupt:
             print("\nUygulama kapatılıyor.")
             break
