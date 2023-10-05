@@ -1,201 +1,255 @@
-import sys
-import os
-from PyQt5.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QPushButton,
-    QWidget,
-    QVBoxLayout,
-    QLabel,
-    QLineEdit,
-    QGridLayout,
-    QMessageBox,
-)
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QGuiApplication
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-from Integrated import *
-from docx import Document
-from docx.shared import Inches
-import datetime
-import shutil
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Hansotto Reiber
+# Reiber, H. (1994). Flow rate of cerebrospinal fluid (CSF) —
+# A concept common to normal blood-CSF barrier function and to dysfunction in neurological diseases.
+# Journal of the Neurological Sciences, 122(2), 189–203. doi:10.1016/0022-510x(94)90298-4
+# Sude Nur Cüre, English Version
 
 
-def create_date_folder():
-    today = datetime.date.today()
-    folder_name = today.strftime("%Y-%m-%d")
-    folder_path = os.path.join("All Documents", folder_name)
-
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-
-    return folder_path
+# Limiting Functions
+def high(x):
+    q_igg_value = 0.93 * (np.sqrt(x**2 + 6e-6)) - 1.7e-3
+    return q_igg_value
 
 
-class DataEntryWindow(QWidget):
-    def __init__(self):
-        super().__init__()
+def low(x):
+    s_igg_value = 0.33 * (np.sqrt(x**2 + 2e-6)) - 0.3e-3
+    return s_igg_value
 
-        self.init_ui()
 
-    def init_ui(self):
-        layout = QGridLayout()
+# Constants
+CONVERSION_FACTOR = 1e-3
+QALB_MIN = 0
+QALB_MAX = 130e-3
+X_MIN = 1.5e-3
+X_MAX = 130e-3
+Y_MIN = 0.3e-3
+Y_MAX = 130e-3
+Y_TICKS = [0.5e-3, 1e-3, 2e-3, 5e-3, 10e-3, 20e-3, 50e-3, 100e-3]
+X_TICKS = [2e-3, 5e-3, 10e-3, 20e-3, 50e-3, 100e-3]
+Y_TICKS_L = [".5", 1, 2, 5, 10, 20, 50, "$\mathregular{100_{x10^{-3}}}$"]
+X_TICKS_L = [2, 5, 10, "$\mathregular{20_{x10^{-3}}}$", 50, 100]
+q_alb_values = np.linspace(QALB_MIN, QALB_MAX, 1000)
+q_igg_values = 0.93 * (np.sqrt(q_alb_values**2 + 6e-6)) - 1.7e-3
+s_igg_values = 0.33 * (np.sqrt(q_alb_values**2 + 2e-6)) - 0.3e-3
 
-        self.input_widgets = {}  # Store QLineEdit widgets in a dictionary
+twenty_igg_values = q_igg_values / 0.8
+fourty_igg_values = q_igg_values / 0.6
+sixty_igg_values = q_igg_values / 0.4
+eighty_igg_values = q_igg_values / 0.2
 
-        self.add_input(layout, "Name/Surname:", 0)
-        self.add_input(layout, "Age:", 1)
-        self.add_input(layout, "Gender:", 2)
-        self.add_input(layout, "Barcode:", 3)
-        self.add_input(layout, "QIgG:", 4)
-        self.add_input(layout, "QAlb:", 5)
+vertical_lines_x = [5e-3, 6.5e-3, 8e-3]
+vertical_ymax = [
+    high(vertical_lines_x[0]),
+    high(vertical_lines_x[1]),
+    high(vertical_lines_x[2]),
+]
+vertical_ymin = [2.3e-3, 3.2e-3, 2.4e-3]
+top_limit = [twenty_igg_values, fourty_igg_values, sixty_igg_values, eighty_igg_values]
+upper_liners = ["20", "40", "60", "80%"]
 
-        self.submit_button = QPushButton("Submit")
-        self.submit_button.clicked.connect(self.save_data)
-        layout.addWidget(self.submit_button, 6, 1)
+# Functions
 
-        self.reset_button = QPushButton("Reset")
-        self.reset_button.clicked.connect(self.reset_fields)
-        layout.addWidget(self.reset_button, 6, 2)
 
-        self.setLayout(layout)
+def text_at_position(upper, label):
+    plt.text(
+        np.interp(100e-3, upper, q_alb_values),
+        100e-3,
+        label,
+        ha="right",
+        va="bottom",
+        color="black",
+    )
 
-    def add_input(self, layout, label_text, row):
-        label = QLabel(label_text)
-        entry = QLineEdit()
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(entry, row, 1)
-        self.input_widgets[
-            label_text
-        ] = entry  # Store the QLineEdit widget in the dictionary
 
-    def reset_fields(self):
-        for widget in self.input_widgets.values():
-            widget.clear()
+def define_lines():
+    """
+    Calculate QAlb, QIgG, and SIgG values.
 
-    def save_data(self):
-        # Get the entered values
-        name = self.input_widgets["Name/Surname:"].text()
-        age = self.input_widgets["Age:"].text()
-        gender = self.input_widgets["Gender:"].text()
-        barcode = self.input_widgets["Barcode:"].text()
-        qigg = self.input_widgets["QIgG:"].text()
-        qalb = self.input_widgets["QAlb:"].text()
+    Returns:
+        q_alb_values (numpy.ndarray): Array of QAlb values.
+        q_igg_values (numpy.ndarray): Array of QIgG values.
+        s_igg_values (numpy.ndarray): Array of SIgG values.
+    """
 
-        # Validate inputs
-        if not all([name, age, gender, barcode, qigg, qalb]):
-            QMessageBox.warning(
-                self,
-                "Validation Error",
-                "Please fill in all fields.",
-                QMessageBox.Ok,
-            )
-            return
+    plt.plot(q_alb_values, q_igg_values, color="black", linewidth=2)
+    plt.plot(q_alb_values, s_igg_values, color="black", linewidth=1)
 
+    for values in top_limit:
+        plt.plot(q_alb_values, values, color="black", linewidth=1, linestyle="--")
+
+    for p, n in zip(top_limit, upper_liners):
+        text_at_position(p, n)
+
+    # X grid
+    gridline_x_positions = [x for x in plt.xticks()[0] if x >= 8e-3] + [
+        x for x in plt.xticks(minor=True)[0] if x >= 8e-3
+    ]
+    ymin = [low(x) for x in gridline_x_positions]
+    ymax = [high(x) for x in gridline_x_positions]
+
+    for x, y1, y2 in zip(gridline_x_positions, ymin, ymax):
+        plt.plot([x, x], [y1, y2], color="black", linewidth=0.5, linestyle="-")
+
+    # Y grid
+    gridline_y_positions = [
+        y for y in plt.yticks()[0] if y >= low(8e-3) and y < high(130e-3)
+    ] + [y for y in plt.yticks(minor=True)[0] if y >= low(8e-3) and y < high(130e-3)]
+
+    for y in gridline_y_positions:
+        xinterp_max = np.interp(y, s_igg_values, q_alb_values)
+        xinterp_min = np.interp(y, q_igg_values, q_alb_values)
+        if xinterp_min < 8e-3:
+            xinterp_min = 8e-3
+        plt.hlines(
+            y,
+            xmin=xinterp_min,
+            xmax=xinterp_max,
+            color="black",
+            linewidth=0.5,
+            linestyle="-",
+        )
+
+
+def draw_vertical_lines():
+    """
+    Draw vertical lines on the plot.
+
+    Vertical lines are defined by the constants VERTICAL_LINES_X, YMIN, and YMAX.
+    """
+
+    for x, y1, y2 in zip(vertical_lines_x, vertical_ymin, vertical_ymax):
+        plt.plot([x, x], [y1, y2], color="black", linewidth=2, linestyle="-")
+
+
+def get_input():
+    """
+    Get user input for QIgG and QAlb values.
+
+    Returns:
+        Qigg (float): QIgG value.
+        Qalbumin (float): QAlb value.
+    """
+    while True:
+        user_input = input("Enter a QIgG value or 'exit': ")
+        if user_input.lower() == "exit":
+            raise SystemExit(0)
         try:
-            age = int(age)
-            qigg = float(qigg) / 1000
-            qalb = float(qalb) / 1000
+            Qigg = float(user_input) * CONVERSION_FACTOR
+            break  # Exit the loop if QIgG is valid
         except ValueError:
-            QMessageBox.warning(
-                self,
-                "Validation Error",
-                "Invalid input for Age, QIgG, or QAlb.",
-                QMessageBox.Ok,
-            )
-            return
+            print("Please enter a valid QIgG value.")
 
-        # Call the function to generate the Word document with information and the Reibergram plot
-        folder_path = create_date_folder()
-        self.generate_word_doc_with_info(
-            qigg, qalb, name, age, gender, barcode, folder_path
-        )
+    while True:
+        user_input = input("Enter a QAlb value or 'exit': ")
+        if user_input.lower() == "exit":
+            raise SystemExit(0)
+        try:
+            Qalbumin = float(user_input) * CONVERSION_FACTOR
+            break  # Exit the loop if QAlb is valid
+        except ValueError:
+            print("Please enter a valid QAlb value.")
 
-        # Reset the input fields
-        self.reset_fields()
-        QMessageBox.information(
-            self,
-            "Data Saved",
-            "Data saved successfully.",
-            QMessageBox.Ok,
-        )
-
-    def generate_word_doc_with_info(
-        self, Qigg, Qalbumin, name, age, gender, barcode, folder_path
-    ):
-        doc_name = f"{barcode}.docx"
-        plot_file = f"{barcode}.png"
-        doc_path = os.path.join(folder_path, doc_name)
-
-        # Create a Word document
-        doc = Document()
-
-        plot_reibergram(Qigg, Qalbumin, barcode)
-
-        # Add collected information to the Word document
-        info_text = (
-            f"Name/Surname: {name}\nAge: {age}\nGender: {gender}\nBarcode: {barcode}"
-        )
-
-        doc.add_heading("Data Entries:", level=1)
-        doc.add_paragraph(info_text)
-
-        # Add the plot image to the Word document
-        doc.add_picture(
-            plot_file, width=Inches(5), height=Inches(5)
-        )  # Adjust width and height as needed
-
-        # Save the Word document
-        doc.save(doc_path)
-
-        # Delete redundant plot.png
-        if os.path.exists(plot_file):
-            os.remove(plot_file)
-
-        # Close the plot to free up memory
-        plt.close()
+    return Qigg, Qalbumin
 
 
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
+def main_plot_setup(Qigg, Qalbumin):
+    """
+    Set up the main plot with labels, ticks, and legends.
 
-        self.init_ui()
+    Args:
+        Qigg (float): QIgG value.
+        Qalbumin (float): QAlb value.
+    """
+    plt.figure(figsize=(6, 6))
 
-    def init_ui(self):
-        self.setWindowTitle("REIBERGRAM by Sude Nur Cüre")
-        self.setGeometry(100, 100, 800, 600)
+    plt.semilogx(
+        [Qalbumin, Qalbumin],
+        [0, Qigg],
+        color="b",
+        linestyle="solid",
+    )
+    plt.semilogy(
+        [0, Qalbumin],
+        [Qigg, Qigg],
+        color="g",
+        linestyle="solid",
+    )
 
-        self.central_widget = QWidget(self)
-        self.setCentralWidget(self.central_widget)
+    plt.xlim(X_MIN, X_MAX)
+    plt.ylim(Y_MIN, Y_MAX)
 
-        layout = QVBoxLayout(self.central_widget)
+    plt.xticks(X_TICKS, X_TICKS_L)
+    plt.yticks(Y_TICKS, Y_TICKS_L)
 
-        label = QLabel("Welcome to REIBERGRAM")
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(label)
+    plt.minorticks_on()
+    plt.xticks(np.append(plt.xticks()[0], [15e-3, 1.5e-3]))
+    plt.yticks(np.append(plt.yticks()[0], [15e-3, 1.5e-3]))
 
-        # Create a timer to close the main window and show the data entry window
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.close_and_show_data_entry)
-        self.timer.start(4000)  # Close after 4 seconds (4000 milliseconds)
+    plt.tick_params(
+        axis="x",
+        which="both",
+        length=8,
+        width=1.5,
+        direction="in",
+        pad=-8,
+    )
+    plt.tick_params(axis="y", which="both", length=8, width=1.5, direction="in", pad=-9)
 
-    def close_and_show_data_entry(self):
-        self.timer.stop()  # Stop the timer
-        self.close()  # Close the main window
-        self.data_entry_window = DataEntryWindow()
-        self.data_entry_window.show()
+    for tick in plt.gca().yaxis.get_majorticklabels():
+        tick.set_horizontalalignment("left")
+    for tick in plt.gca().xaxis.get_majorticklabels():
+        tick.set_verticalalignment("bottom")
+
+    plt.text(
+        3e-3,
+        60e-3,
+        "QIgG",
+        ha="center",
+        va="center",
+        fontsize=15,
+        color="black",
+        alpha=1,
+        weight="bold",
+    )
+    plt.text(
+        60e-3,
+        0.65e-3,
+        "QAlb",
+        ha="center",
+        va="center",
+        fontsize=15,
+        color="black",
+        alpha=1,
+        weight="bold",
+    )
+
+    plt.scatter(Qalbumin, Qigg, color="r")
+    plt.grid(False)
+
+
+def plot_reibergram(Qigg, Qalbumin, barcode="App"):
+    """
+    Plot the Reibergram including vertical lines and shaded region.
+
+    Args:
+        Qigg (float): QIgG value.
+        Qalbumin (float): QAlb value.
+    """
+    main_plot_setup(Qigg, Qalbumin)
+    define_lines()
+    draw_vertical_lines()
+
+    plt.savefig(f"{barcode}.png", bbox_inches="tight")
 
 
 if __name__ == "__main__":
-    # Create a directory to store all documents
-    if not os.path.exists("All Documents"):
-        os.makedirs("All Documents")
-
-    labels = ["Name/Surname", "Age", "Gender", "Barcode", "QIgG", "QAlb"]
-    data_entries = []
-    app = QApplication(sys.argv)
-    main_window = MainWindow()
-    main_window.show()
-    sys.exit(app.exec_())
+    while True:
+        try:
+            Qigg, Qalbumin = get_input()
+            plot_reibergram(Qigg, Qalbumin)
+        except KeyboardInterrupt:
+            print("\nExiting...")
+            break
